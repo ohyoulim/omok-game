@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>오유림의 오목게임</title>
+    <style>
+        /* 기본 스타일 설정 */
+        :root {
+            --board-color: #e3bc82;
+            --line-color: #4a3721;
+            --bg-color: #f0f2f5;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 가로 모드에서도 상단이 잘리지 않도록 정렬 */
+            justify-content: flex-start; 
+            overflow-x: hidden;
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 30px 10px; /* 상하 여백 넉넉히 */
+            box-sizing: border-box;
+            gap: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        /* 점수판 스타일 */
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            background: #4a3721;
+            color: white;
+            padding: 15px 0;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .score-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 1.8rem;
+            color: #e3bc82;
+            font-weight: bold;
+        }
+
+        .status-panel {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .turn-indicator {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+        }
+
+        .stone-preview {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+        }
+
+        .stone-black { background: radial-gradient(circle at 30% 30%, #444, #000); }
+        .stone-white { background: radial-gradient(circle at 30% 30%, #fff, #ccc); border: 1px solid #ddd; }
+
+        #game-canvas {
+            background-color: var(--board-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            border-radius: 8px;
+            cursor: pointer;
+            touch-action: none; 
+        }
+
+        .btn-group { display: flex; gap: 10px; }
+
+        button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background-color: #4a3721;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:active { transform: scale(0.95); }
+        button.btn-secondary { background-color: #7f8c8d; }
+
+        /* 모달 스타일 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .modal-content input {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            text-align: center;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .modal-content p {
+            word-break: keep-all;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.4rem; }
+            .score-value { font-size: 1.4rem; }
+            .status-panel { padding: 8px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper">
+        <h1>오유림의 오목게임</h1>
+
+        <div class="status-container">
+            <div class="score-board">
+                <div class="score-item">
+                    <span id="p1-name-label" class="score-label">흑돌</span>
+                    <span id="p1-score" class="score-value">0</span>
+                </div>
+                <div class="score-item">
+                    <span id="p2-name-label" class="score-label">백돌</span>
+                    <span id="p2-score" class="score-value">0</span>
+                </div>
+            </div>
+
+            <div class="status-panel">
+                <div class="turn-indicator">
+                    <div id="current-stone" class="stone-preview stone-black"></div>
+                    <span id="player-display">흑돌 차례</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-secondary" onclick="openRenameModal()">이름 변경</button>
+                    <button onclick="confirmReset()">새 게임</button>
+                </div>
+            </div>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- 플레이어 이름 입력 모달 -->
+    <div id="name-modal" class="modal-overlay" style="display: flex;">
+        <div class="modal-content">
+            <h3>플레이어 이름 설정</h3>
+            <input type="text" id="p1-input" value="흑돌" placeholder="흑돌 플레이어">
+            <input type="text" id="p2-input" value="백돌" placeholder="백돌 플레이어">
+            <button onclick="startGame(true)" style="width: 100%; margin-top: 15px; height: 45px;">게임 시작</button>
+        </div>
+    </div>
+
+    <!-- 알림용 커스텀 모달 -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">알림</h3>
+            <p id="modal-message"></p>
+            <div id="modal-actions" style="display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const playerDisplay = document.getElementById('player-display');
+        const currentStoneIcon = document.getElementById('current-stone');
+        const nameModal = document.getElementById('name-modal');
+        const customModal = document.getElementById('custom-modal');
+
+        const SIZE = 15;
+        let cellSize, margin, board, currentPlayer, isGameOver, players, scores;
+        let particles = [], animationId = null;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(f, t, d, v) {
+            try {
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                g.gain.setValueAtTime(v, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
+            } catch(e) {}
+        }
+
+        function showCustomModal(title, message, options = []) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            const actions = document.getElementById('modal-actions');
+            actions.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.innerText = opt.text;
+                if (opt.type === 'cancel') btn.className = 'btn-secondary';
+                btn.onclick = () => { 
+                    customModal.style.display = 'none'; 
+                    if(opt.callback) opt.callback(); 
+                };
+                actions.appendChild(btn);
+            });
+            customModal.style.display = 'flex';
+        }
+
+        function resizeCanvas() {
+            // 이제 가로 모드에서도 너비를 기준으로 크기를 잡습니다. (세로 레이아웃 유지)
+            // 가로 너비가 600px보다 크면 최대 550px로 고정
+            const winSize = Math.min(window.innerWidth * 0.92, 550);
+            
+            canvas.width = winSize;
+            canvas.height = winSize;
+            cellSize = winSize / (SIZE + 1);
+            margin = cellSize;
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 바둑판 선 그리기
+            ctx.strokeStyle = '#4a3721';
+            ctx.lineWidth = 1.2;
+            for (let i = 0; i < SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(margin, margin + i * cellSize);
+                ctx.lineTo(margin + (SIZE-1)*cellSize, margin + i * cellSize);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(margin + i * cellSize, margin);
+                ctx.lineTo(margin + i * cellSize, margin + (SIZE-1)*cellSize);
+                ctx.stroke();
+            }
+
+            // 화점 그리기
+            const stars = [3, 7, 11];
+            ctx.fillStyle = '#4a3721';
+            stars.forEach(r => stars.forEach(c => {
+                ctx.beginPath(); 
+                ctx.arc(margin + c * cellSize, margin + r * cellSize, 3.5, 0, Math.PI * 2); 
+                ctx.fill();
+            }));
+
+            // 돌 그리기
+            if (board) {
+                board.forEach((row, r) => row.forEach((cell, c) => {
+                    if (cell) drawStone(r, c, cell);
+                }));
+            }
+        }
+
+        function drawStone(r, c, type) {
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            const rad = cellSize * 0.44;
+            
+            ctx.beginPath();
+            const grad = ctx.createRadialGradient(x - rad/3, y - rad/3, rad/10, x, y, rad);
+            
+            if (type === 1) { // 흑돌
+                grad.addColorStop(0, '#555'); 
+                grad.addColorStop(1, '#000'); 
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            } else { // 백돌
+                grad.addColorStop(0, '#fff'); 
+                grad.addColorStop(1, '#ddd'); 
+                ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            }
+            
+            ctx.shadowBlur = 5; 
+            ctx.shadowOffsetY = 3;
+            ctx.fillStyle = grad;
+            ctx.arc(x, y, rad, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+            
+            if (type === 2) { 
+                ctx.strokeStyle = '#ccc'; 
+                ctx.lineWidth = 1;
+                ctx.stroke(); 
+            }
+        }
+
+        // 터치/마우스 조작 통합 처리
+        canvas.addEventListener('mousedown', handleAction);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleAction(e.touches[0]);
+        });
+
+        function handleAction(e) {
+            if (isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const c = Math.round((x - margin) / cellSize);
+            const r = Math.round((y - margin) / cellSize);
+
+            if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === 0) {
+                board[r][c] = currentPlayer;
+                playSound(180, 'sine', 0.1, 0.4);
+                draw();
+                
+                if (checkWin(r, c)) {
+                    isGameOver = true;
+                    scores[currentPlayer]++;
+                    updateUI();
+                    playSound(523, 'triangle', 0.5, 0.3);
+                    startConfetti();
+                    showCustomModal("승리!", `${players[currentPlayer]}님이 오목을 완성했습니다! 🎉`, [
+                        {text: "다시하기", callback: initBoard},
+                        {text: "닫기"}
+                    ]);
+                } else {
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
+                    updateUI();
+                }
+            }
+        }
+
+        function checkWin(r, c) {
+            const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+            for (const [dr, dc] of dirs) {
+                let cnt = 1;
+                [[dr, dc], [-dr, -dc]].forEach(([sr, sc]) => {
+                    let nr = r + sr, nc = c + sc;
+                    while(nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc] === currentPlayer) { 
+                        cnt++; 
+                        nr += sr; nc += sc; 
+                    }
+                });
+                if (cnt >= 5) return true;
+            }
+            return false;
+        }
+
+        function updateUI() {
+            playerDisplay.innerText = `${players[currentPlayer]} 차례`;
+            currentStoneIcon.className = `stone-preview stone-${currentPlayer === 1 ? 'black' : 'white'}`;
+            document.getElementById('p1-score').innerText = scores[1];
+            document.getElementById('p2-score').innerText = scores[2];
+        }
+
+        function initBoard() {
+            board = Array.from({length:SIZE}, () => Array(SIZE).fill(0));
+            isGameOver = false; 
+            currentPlayer = 1;
+            stopConfetti();
+            resizeCanvas(); 
+            updateUI();
+        }
+
+        function startGame(fullInit) {
+            players = { 
+                1: document.getElementById('p1-input').value || "흑돌", 
+                2: document.getElementById('p2-input').value || "백돌" 
+            };
+            document.getElementById('p1-name-label').innerText = players[1];
+            document.getElementById('p2-name-label').innerText = players[2];
+            nameModal.style.display = 'none';
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (fullInit) { scores = {1:0, 2:0}; initBoard(); } else updateUI();
+        }
+
+        function openRenameModal() { nameModal.style.display = 'flex'; }
+        
+        function confirmReset() {
+            showCustomModal("게임 초기화", "정말로 게임을 다시 시작하시겠습니까?", [
+                {text: "취소", type: "cancel"},
+                {text: "확인", callback: initBoard},
+                {text: "점수까지 초기화", type: "cancel", callback: () => { scores={1:0, 2:0}; initBoard(); }}
+            ]);
+        }
+
+        // 폭죽(Confetti) 로직
+        class Particle {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.vx = (Math.random() - 0.5) * 12;
+                this.vy = (Math.random() - 0.8) * 12;
+                this.gravity = 0.25;
+                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                this.size = Math.random() * 6 + 4;
+                this.life = 100;
+            }
+            update() {
+                this.vx *= 0.98;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 1.5;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = Math.max(0, this.life / 100);
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function startConfetti() {
+            particles = Array.from({ length: 120 }, () => new Particle());
+            if(!animationId) animateConfetti();
+        }
+
+        function stopConfetti() {
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = null;
+            particles = [];
+        }
+
+        function animateConfetti() {
+            draw();
+            let alive = false;
+            particles.forEach(p => {
+                if (p.life > 0) {
+                    p.update();
+                    p.draw();
+                    alive = true;
+                }
+            });
+            if (alive && isGameOver) {
+                animationId = requestAnimationFrame(animateConfetti);
+            } else {
+                animationId = null;
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>
