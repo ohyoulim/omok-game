@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>오유림의 오목게임</title>
     <style>
         /* 기본 스타일 설정 */
@@ -21,10 +21,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* 가로 모드에서도 상단이 잘리지 않도록 정렬 */
             justify-content: flex-start; 
             overflow-x: hidden;
             overflow-y: auto; 
+            touch-action: manipulation;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -33,7 +33,7 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            padding: 30px 10px; /* 상하 여백 넉넉히 */
+            padding: 30px 10px;
             box-sizing: border-box;
             gap: 20px;
         }
@@ -117,7 +117,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
             border-radius: 8px;
             cursor: pointer;
-            touch-action: none; 
+            touch-action: pinch-zoom; 
         }
 
         .btn-group { display: flex; gap: 10px; }
@@ -277,8 +277,6 @@
         }
 
         function resizeCanvas() {
-            // 이제 가로 모드에서도 너비를 기준으로 크기를 잡습니다. (세로 레이아웃 유지)
-            // 가로 너비가 600px보다 크면 최대 550px로 고정
             const winSize = Math.min(window.innerWidth * 0.92, 550);
             
             canvas.width = winSize;
@@ -291,7 +289,6 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // 바둑판 선 그리기
             ctx.strokeStyle = '#4a3721';
             ctx.lineWidth = 1.2;
             for (let i = 0; i < SIZE; i++) {
@@ -305,7 +302,6 @@
                 ctx.stroke();
             }
 
-            // 화점 그리기
             const stars = [3, 7, 11];
             ctx.fillStyle = '#4a3721';
             stars.forEach(r => stars.forEach(c => {
@@ -314,7 +310,6 @@
                 ctx.fill();
             }));
 
-            // 돌 그리기
             if (board) {
                 board.forEach((row, r) => row.forEach((cell, c) => {
                     if (cell) drawStone(r, c, cell);
@@ -330,11 +325,11 @@
             ctx.beginPath();
             const grad = ctx.createRadialGradient(x - rad/3, y - rad/3, rad/10, x, y, rad);
             
-            if (type === 1) { // 흑돌
+            if (type === 1) {
                 grad.addColorStop(0, '#555'); 
                 grad.addColorStop(1, '#000'); 
                 ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            } else { // 백돌
+            } else {
                 grad.addColorStop(0, '#fff'); 
                 grad.addColorStop(1, '#ddd'); 
                 ctx.shadowColor = 'rgba(0,0,0,0.2)';
@@ -354,12 +349,13 @@
             }
         }
 
-        // 터치/마우스 조작 통합 처리
         canvas.addEventListener('mousedown', handleAction);
         canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleAction(e.touches[0]);
-        });
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                handleAction(e.touches[0]);
+            }
+        }, { passive: false });
 
         function handleAction(e) {
             if (isGameOver) return;
@@ -446,7 +442,6 @@
             ]);
         }
 
-        // 폭죽(Confetti) 로직
         class Particle {
             constructor() {
                 this.x = canvas.width / 2;
